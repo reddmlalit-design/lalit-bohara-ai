@@ -154,7 +154,11 @@ async function askLalitAI() {
     inputField.value = "";
     outputDiv.scrollTop = outputDiv.scrollHeight;
 
-const apiKey = "";
+let apiKey = localStorage.getItem("g_key");
+if(!apiKey){
+    apiKey = prompt("भाई, सुरक्षा के लिए अपनी Gemini API Key यहाँ पेस्ट करो:");
+    if(apiKey) localStorage.setItem("g_key", apiKey);
+}
     const systemInstruction = "तुम एक गेमिंग AI असिस्टेंट हो जिसका नाम Lalit AI है। तुम्हें Free Fire, BGMI और सामान्य ज्ञान के बारे में सब कुछ पता है। तुम्हें यूज़र के साथ हमेशा हिंदी या Hinglish में ही बात करनी है। जवाब छोटे और दोस्ताना होने चाहिए।";
     const fullPrompt = `${systemInstruction}\n यूज़र का सवाल: ${prompt}`;
 
