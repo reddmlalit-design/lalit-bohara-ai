@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LALIT AI HUB</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #0f0f1a 0%, #05050a 100%); 
+            color: #e0e0ff; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        
+        #header { 
+            text-align: center; 
+            padding: 15px; 
+            margin: 0; 
+            background: rgba(20, 20, 35, 0.8); 
+            border-bottom: 3px solid #ff007f; 
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px #ff007f, 0 0 20px #ff007f;
+            color: #fff;
+        }
+
+        #chat-container { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            background: rgba(5, 5, 10, 0.4);
+        }
+
+        .message { 
+            padding: 12px 18px; 
+            border-radius: 4px; 
+            max-width: 75%; 
+            word-wrap: break-word; 
+            line-height: 1.5;
+            font-size: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .user { 
+            background: linear-gradient(90deg, rgba(0, 242, 254, 0.15), rgba(79, 172, 254, 0.25)); 
+            align-self: flex-end; 
+            border: 1px solid #00f2fe;
+            border-left: 4px solid #00f2fe;
+            text-shadow: 0 0 5px rgba(0, 242, 254, 0.5);
+            color: #ccffff;
+        }
+
+        .ai { 
+            background: linear-gradient(90deg, rgba(255, 0, 127, 0.15), rgba(255, 75, 43, 0.25)); 
+            align-self: flex-start; 
+            border: 1px solid #ff007f;
+            border-left: 4px solid #ff007f;
+            text-shadow: 0 0 5px rgba(255, 0, 127, 0.5);
+            color: #ffcce6;
+        }
+
+        #input-container { 
+            padding: 15px; 
+            background-color: #0f0f1a; 
+            display: flex; 
+            gap: 10px; 
+            border-top: 2px solid #33334d;
+            align-items: center;
+        }
+
+        input { 
+            flex: 1; 
+            padding: 14px; 
+            border: 1px solid #33334d; 
+            border-radius: 4px; 
+            background-color: #151525; 
+            color: #fff; 
+            font-size: 16px; 
+            outline: none;
+        }
+        
+        input:focus {
+            border-color: #00f2fe;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        }
+
+        .mic-btn {
+            background: #222235;
+            border: 1px solid #00f2fe;
+            color: #00f2fe;
+            padding: 12px 15px;
+            font-size: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.3);
+            transition: all 0.3s;
+        }
+
+        .mic-btn.recording {
+            background: #ff007f;
+            color: white;
+            border-color: #ff007f;
+            box-shadow: 0 0 15px #ff007f;
+            animation: pulse 1s infinite alternate;
+        }
+
+        button.fire-btn { 
+            padding: 14px 25px; 
+            border: none; 
+            border-radius: 4px; 
+            background: linear-gradient(45deg, #ff007f, #ff4b2b); 
+            color: white; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold; 
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.5);
+            text-transform: uppercase;
+        }
+
+        button.fire-btn:hover { 
+            box-shadow: 0 0 20px #ff007f;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.08); }
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #05050a; }
+        ::-webkit-scrollbar-thumb { background: #ff007f; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="header">⚡ LALIT AI HUB ⚡</div>
+    <div id="chat-container"></div>
+
+    <div id="input-container">
+        <button id="mic-btn" class="mic-btn" onclick="startVoiceRecognition()">🎙️</button>
+        <input type="text" id="user-input" placeholder="बोलें या टाइप करें भाई..." onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button class="fire-btn" onclick="sendMessage()">FIRE</button>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let API_KEY = urlParams.get('key');
+        
+        if (!API_KEY) {
+            API_KEY = localStorage.getItem('gemini_key');
+            if (!API_KEY) {
+                API_KEY = prompt("भाई, सुरक्षा के लिए अपनी Gemini API Key यहाँ पेस्ट करो:");
+                if (API_KEY) localStorage.setItem('gemini_key', API_KEY);
+            }
+        }
+
+        const chatContainer = document.getElementById("chat-container");
+        let recognition;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN'; 
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                document.getElementById("mic-btn").classList.add("recording");
+            };
+
+            recognition.onresult = (event) => {
+                const speechToText = event.results.transcript;
+                document.getElementById("user-input").value = speechToText;
+                sendMessage(); 
+            };
+
+            recognition.onerror = () => {
+                document.getElementById("mic-btn").classList.remove("recording");
+            };
+
+            recognition.onend = () => {
+                document.getElementById("mic-btn").classList.remove("recording");
+            };
+        } else {
+            alert("आपके ब्राउज़र में वॉइस सपोर्ट उपलब्ध नहीं है।");
+        }
+
+        function startVoiceRecognition() {
+            if (recognition) {
+                recognition.start();
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); 
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'hi-IN'; 
+                utterance.rate = 1.0; 
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        async function sendMessage() {
+            const inputField = document.getElementById("user-input");
+            const text = inputField.value.trim();
+            if (!text || !API_KEY) return;
+
+            appendMessage(text, "user");
+            inputField.value = "";
+
+            const aiMessageElement = appendMessage("⚡ डेटा लोड हो रहा है...", "ai");
+
+            try {
+                const response = await fetch(`https://googleapis.com{API_KEY}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: text }] }],
+                        systemInstruction: { parts: [{ text: "तुम एक बहुत ही सख्त, कड़क और बार-बार टोकने वाले तगादा असिस्टेंट और प्रो गेमर हो जो टर्मक्स का मास्टर है। यूजर से सीधे शब्दों में हिंदी में बात करो।" }] }
+                    })
+                });
+
+                const data = await response.json();
+                const aiResponse = data.candidates.content.parts.text;
+                
+                aiMessageElement.innerText = aiResponse;
+                speak(aiResponse); 
+            } catch (error) {
+                aiMessageElement.innerText = "✖ कनेक्शन एरर! कृपया अपनी API Key चेक करें।";
+                console.error(error);
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${sender}`;
+            messageDiv.innerText = text;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+    </script>
+</body>
+</html>
